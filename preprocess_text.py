@@ -143,11 +143,11 @@ def decode(seq_idx, idx_to_token, delim=None, stop_at_end=True):
 
 
 def main(args):
-    data_dir = '/import/antennas/Datasets/hx301/'
-    args.input_data_dir = data_dir + args.input_data_dir
-    args.output_train_dir = data_dir + args.output_train_dir
-    args.output_test_dir = data_dir + args.output_test_dir
-    args.output_vocab = data_dir + args.output_vocab
+    # data_dir = '/import/antennas/Datasets/hx301/'
+    # args.input_data_dir = data_dir + args.input_data_dir
+    # args.output_train_dir = data_dir + args.output_train_dir
+    # args.output_test_dir = data_dir + args.output_test_dir
+    # args.output_vocab = data_dir + args.output_vocab
 
     print(args.input_data_dir)
     sentences = []
