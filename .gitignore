@@ -10,6 +10,8 @@ build
 # virtual enviornment
 /.env/*
 /.idea/*
+.venv
+.conda
 
 # models
 checkpoints/
@@ -17,3 +19,6 @@ checkpoints/
 /checkpoints/deepsc-mi-awgn/*
 /checkpoints/deepsc-mi/Rayleigh/*
 /checkpoints/deepsc-Rayleigh/* 
+
+txt/
+europarl*
