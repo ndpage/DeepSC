@@ -58,13 +58,14 @@ def infer_sentence(token_indices, noise_snr=6):
     with torch.no_grad():
         out = greedy_decode(model, token_indices, noise_std, args.max_length, pad_idx,
                             start_idx, args.channel)
-    out = out.cpu().numpy().tolist()
+    out = out.cpu().numpy().tolist() # Copy to CPU memory, convert to list
     texts = [stoT.sequence_to_text(seq) for seq in out]
     return texts
 
 # Example usage with dataset:
 if __name__ == '__main__':
     ds = EurDataset('test')  # or build a dataset from raw strings if you have tokenizer
+    print("ds.data: ", ds.data[0])
     dl = DataLoader(ds, batch_size=args.batch_size, collate_fn=collate_data)
     for batch in dl:
         preds = infer_sentence(batch, noise_snr=6)
