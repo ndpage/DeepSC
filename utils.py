@@ -15,7 +15,12 @@ from w3lib.html import remove_tags
 from nltk.translate.bleu_score import sentence_bleu
 from models.mutual_info import sample_batch, mutual_information
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+if getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
+    device = torch.device("mps")
+elif torch.cuda.is_available():
+    device = torch.device("cuda:0")
+else:
+    device = torch.device("cpu")
 
 class BleuScore():
     def __init__(self, w1, w2, w3, w4):

@@ -34,7 +34,15 @@ parser.add_argument('--batch-size', default=128, type=int)
 parser.add_argument('--epochs', default=80, type=int)
 
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+if getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
+    device = torch.device("mps")
+elif torch.cuda.is_available():
+    device = torch.device("cuda:0")
+else:
+    device = torch.device("cpu")
+
+print("Using device:", device)
 
 def setup_seed(seed):
     torch.manual_seed(seed)
@@ -136,8 +144,8 @@ if __name__ == '__main__':
     record_loss = []
 
 
-    
 
-        
+
+
 
 

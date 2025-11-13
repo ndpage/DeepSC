@@ -19,7 +19,14 @@ parser.add_argument('--num-heads', default=8, type=int)
 parser.add_argument('--dff', default=512, type=int)
 args = parser.parse_args()
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+if getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
+    device = torch.device("mps")
+elif torch.cuda.is_available():
+    device = torch.device("cuda:0")
+else:
+    device = torch.device("cpu")
+
+print("Using device:", device)
 
 # Load vocab and indices
 vocab = json.load(open(args.vocab_file, 'rb'))
