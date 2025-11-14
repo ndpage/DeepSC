@@ -132,7 +132,7 @@ if __name__ == '__main__':
         start = time.time()
         record_acc = 10
 
-        train(epoch, args, deepsc)
+        train(epoch, args, deepsc, mi_net)
         avg_acc = validate(epoch, args, deepsc)
 
         if avg_acc < record_acc:
