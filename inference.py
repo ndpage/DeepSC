@@ -8,15 +8,16 @@ from dataset import EurDataset, collate_data
 from torch.utils.data import DataLoader
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--checkpoint', default='checkpoints/deepsc-Rayleigh/checkpoint_20.pth', type=str)
-parser.add_argument('--vocab-file', default='europarl/vocab.json', type=str)
-parser.add_argument('--max-length', default=30, type=int)
-parser.add_argument('--batch-size', default=1, type=int)
-parser.add_argument('--channel', default='Rayleigh', type=str)
-parser.add_argument('--num-layers', default=4, type=int)
-parser.add_argument('--d-model', default=128, type=int)
-parser.add_argument('--num-heads', default=8, type=int)
-parser.add_argument('--dff', default=512, type=int)
+parser.add_argument('--checkpoint', default='checkpoints/deepsc-Rayleigh/checkpoint_20.pth', type=str, help='Path to model checkpoint')
+parser.add_argument('--vocab-file', default='europarl/vocab.json', type=str, help='Path to vocabulary file')
+parser.add_argument('--max-length', default=30, type=int, help='Maximum decoding length')
+parser.add_argument('--batch-size', default=1, type=int, help='Batch size for inference')
+parser.add_argument('--channel', default='Rayleigh', type=str, help='Channel type (e.g., AWGN, Rayleigh, Rician)')
+parser.add_argument('--num-layers', default=4, type=int, help='Number of transformer layers')
+parser.add_argument('--d-model', default=128, type=int, help='Dimension of the model')
+parser.add_argument('--num-heads', default=8, type=int, help='Number of attention heads')
+parser.add_argument('--dff', default=512, type=int, help='Dimension of the feed-forward network')
+parser.add_argument('--snr', default=7, type=float, help='SNR value used to compute noise standard deviation')
 args = parser.parse_args()
 
 if getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
@@ -55,6 +56,7 @@ def infer_sentence(token_indices, noise_snr=6):
     """
     token_indices = token_indices.to(device)
     noise_std = SNR_to_noise(noise_snr)
+    print(f"Using SNR {noise_snr} -> noise: {noise_std}")
     with torch.no_grad():
         out = greedy_decode(model, token_indices, noise_std, args.max_length, pad_idx,
                             start_idx, args.channel)
@@ -65,9 +67,11 @@ def infer_sentence(token_indices, noise_snr=6):
 # Example usage with dataset:
 if __name__ == '__main__':
     ds = EurDataset('test')  # or build a dataset from raw strings if you have tokenizer
-    print("ds.data: ", ds.data[0])
+    # print("ds.data: ", ds.data[0])
     dl = DataLoader(ds, batch_size=args.batch_size, collate_fn=collate_data)
     for batch in dl:
-        preds = infer_sentence(batch, noise_snr=6)
-        print(preds)
+        preds = infer_sentence(batch, noise_snr=args.snr)
+        # print(preds)
+        for p in preds:
+            print(p)
         break
