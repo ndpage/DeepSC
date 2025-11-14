@@ -7,6 +7,7 @@
 """
 import os
 import json
+import sys
 import torch
 import argparse
 import numpy as np
@@ -16,10 +17,17 @@ from torch.utils.data import DataLoader
 from utils import BleuScore, SNR_to_noise, greedy_decode, SeqtoText
 from tqdm import tqdm
 from sklearn.preprocessing import normalize
-# from bert4keras.backend import keras
-# from bert4keras.models import build_bert_model
-# from bert4keras.tokenizers import Tokenizer
 from w3lib.html import remove_tags
+
+# Optional semantic similarity backend (bert4keras). If unavailable, we disable similarity gracefully.
+try:
+    from bert4keras.backend import keras  # type: ignore
+    from bert4keras.models import build_transformer_model  # type: ignore
+    from bert4keras.tokenizers import Tokenizer  # type: ignore
+    BERT4KERAS_AVAILABLE = True
+except Exception as e:
+    BERT4KERAS_AVAILABLE = False
+    print(f"[INFO] bert4keras unavailable or incompatible; similarity will be skipped: {e}")
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data-dir', default='europarl/train_data.pkl', type=str)
@@ -37,6 +45,7 @@ parser.add_argument('--epochs', default=2, type = int)
 parser.add_argument('--bert-config-path', default='bert/cased_L-12_H-768_A-12/bert_config.json', type = str)
 parser.add_argument('--bert-checkpoint-path', default='bert/cased_L-12_H-768_A-12/bert_model.ckpt', type = str)
 parser.add_argument('--bert-dict-path', default='bert/cased_L-12_H-768_A-12/vocab.txt', type = str)
+parser.add_argument('--snr-list', default='0,3,6,9,12,15,18,25', type=str, help='Comma-separated list of SNR values for evaluation')
 
 if getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
     device = torch.device("mps")
@@ -165,7 +174,9 @@ def performance(args, SNR, net):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    SNR = [0,3,6,9,12,15,18]
+    # SNR = [0,3,6,9,12,15,18,25]
+    SNR = args.SNR_values if hasattr(args, 'SNR_values') else [0, 3, 6, 9, 12, 15, 18, 25]
+    
 
     # args.vocab_file = '/import/antennas/Datasets/hx301/' + args.vocab_file
     vocab = json.load(open(args.vocab_file, 'rb'))
@@ -192,9 +203,14 @@ if __name__ == '__main__':
     model_path, _ = model_paths[-1]
     checkpoint = torch.load(model_path)
     deepsc.load_state_dict(checkpoint)
-    print('model load!')
+    print('model loaded!')
 
     bleu_score = performance(args, SNR, deepsc)
-    print(bleu_score)
+    # print(bleu_score)
+
+    print("Performance Results:")
+    for i, snr in enumerate(SNR):
+        out = f"SNR: {snr:3} dB, BLEU-1: {bleu_score[i]:.4f}"
+        print(out)
 
     #similarity.compute_similarity(sent1, real)
