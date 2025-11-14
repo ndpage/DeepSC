@@ -264,13 +264,13 @@ def train_step(model, src, trg, n_var, pad, opt, criterion, channel, mi_net=None
     loss = loss_function(pred.contiguous().view(-1, ntokens), 
                          trg_real.contiguous().view(-1), 
                          pad, criterion)
-
+    lambda_ = 0.0007
     if mi_net is not None:
         mi_net.eval()
         joint, marginal = sample_batch(Tx_sig, Rx_sig)
         mi_lb, _, _ = mutual_information(joint, marginal, mi_net)
         loss_mine = -mi_lb
-        loss = loss + 0.0009 * loss_mine
+        loss = loss + lambda_ * loss_mine
     # loss = loss_function(pred, trg_real, pad)
 
     loss.backward()
