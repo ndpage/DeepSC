@@ -43,4 +43,5 @@ python performance.py
 Nathan Page (npage@clemson.edu)
   + Update to support Python 13+
   + Generalize paths to training and testing data
+  + Add support for Apple Metal Performance Shader (MPS) to leverage Apple Silicon GPU
   + Add $\lambda$ (lambda_) variable in ```utils.py``` file in ```train_step``` function
