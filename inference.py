@@ -1,11 +1,14 @@
 # inference.py
 import json
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 import torch
 import argparse
 from models.transceiver import DeepSC
 from utils import greedy_decode, SeqtoText, SNR_to_noise
 from dataset import EurDataset, collate_data
 from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--checkpoint', default='checkpoints/deepsc-Rayleigh/checkpoint_20.pth', type=str, help='Path to model checkpoint')
@@ -17,7 +20,7 @@ parser.add_argument('--num-layers', default=4, type=int, help='Number of transfo
 parser.add_argument('--d-model', default=128, type=int, help='Dimension of the model')
 parser.add_argument('--num-heads', default=8, type=int, help='Number of attention heads')
 parser.add_argument('--dff', default=512, type=int, help='Dimension of the feed-forward network')
-parser.add_argument('--snr', default=7, type=float, help='SNR value used to compute noise standard deviation')
+parser.add_argument('--snr', default=10, type=float, help='SNR value used to compute noise standard deviation')
 args = parser.parse_args()
 
 if getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
@@ -58,11 +61,13 @@ def infer_sentence(token_indices, noise_snr=6):
     noise_std = SNR_to_noise(noise_snr)
     print(f"Using SNR {noise_snr} -> noise: {noise_std}")
     with torch.no_grad():
-        out = greedy_decode(model, token_indices, noise_std, args.max_length, pad_idx,
+        out, enc_output, channel_enc_output, Tx_sig, Rx_sig, memory = greedy_decode(model, token_indices, noise_std, args.max_length, pad_idx,
                             start_idx, args.channel)
-    out = out.cpu().numpy().tolist() # Copy to CPU memory, convert to list
-    texts = [stoT.sequence_to_text(seq) for seq in out]
-    return texts
+    out_cpu = out.cpu().numpy().tolist() # Copy to CPU memory, convert to list
+
+    # Convert to text
+    texts = [stoT.sequence_to_text(seq) for seq in out_cpu]
+    return texts, out, enc_output, channel_enc_output, Tx_sig, Rx_sig, memory
 
 # Example usage with dataset:
 if __name__ == '__main__':
@@ -70,8 +75,54 @@ if __name__ == '__main__':
     # print("ds.data: ", ds.data[0])
     dl = DataLoader(ds, batch_size=args.batch_size, collate_fn=collate_data)
     for batch in dl:
-        preds = infer_sentence(batch, noise_snr=args.snr)
-        # print(preds)
+        preds, out, enc_output, channel_enc_output, Tx_sig, Rx_sig, memory = infer_sentence(batch, noise_snr=args.snr)
         for p in preds:
             print(p)
+
+        print(f"Input batch: {batch.shape}")
+        print(f"Output shape: {out.shape}")
+        print(f"Encoded output shape: {enc_output.shape}")
+        print(f"Channel encoded output shape: {channel_enc_output.shape}")
+        print(f"Transmitted signal shape: {Tx_sig.shape}")
+        print(f"Received signal shape: {Rx_sig.shape}")
+        print(f"Memory shape: {memory.shape}")
+        
+        # Visualize input and output tensors
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 5))
+        fig: Figure = fig
+        # Add top-level title for the entire figure
+        fig.suptitle(f'DeepSC Inference - SNR: {args.snr} dB, Channel: {args.channel}', fontsize=14, fontweight='bold')
+        
+        inp = batch.cpu().numpy()[0]
+        outp = out.cpu().numpy()[0]
+        ax1.plot(inp, marker='o')
+        ax1.plot(outp, marker='x')
+        ax1.set_title('Input vs Output')
+        ax1.grid(True)
+        ax1.legend(['Input', 'Output'])
+        fig.subplots_adjust(bottom=0.15)
+        # Figure fraction (top-left of full figure)
+        fig.text(0.1, 0.08, f'Predicted: {preds[0]}', wrap=True, ha='left', va='top',
+                 fontsize=10, bbox=dict(facecolor='white', alpha=0.9))
+        
+        io_diff = []
+        for i, o in zip(inp, outp):
+            io_diff.append(i - o)
+            
+        ax2.plot(io_diff)
+        ax2.set_title('Input - Output Difference')
+        # ax2.axis('off')
+
+        tx = Tx_sig.cpu().numpy()[0]
+        rx = Rx_sig.cpu().numpy()[0]
+
+        ax3.imshow(tx)
+        ax3.set_title('Transmitted Signal')
+        ax3.axis('off')
+
+        ax4.imshow(rx)
+        ax4.set_title('Received Signal')
+        ax4.axis('off')
+
+        plt.show()
         break

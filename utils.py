@@ -390,7 +390,7 @@ def greedy_decode(model, src, n_var, max_len, padding_idx, start_symbol, channel
         #next_word = next_word.data[0]
         outputs = torch.cat([outputs, next_word], dim=1)
 
-    return outputs
+    return outputs, enc_output, channel_enc_output, Tx_sig, Rx_sig, memory
 
 
 
