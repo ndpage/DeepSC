@@ -2,6 +2,7 @@
 import json
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
+import numpy
 import torch
 import argparse
 from models.transceiver import DeepSC
@@ -67,28 +68,41 @@ def infer_sentence(token_indices, noise_snr=6):
 
     # Convert to text
     texts = [stoT.sequence_to_text(seq) for seq in out_cpu]
-    return texts, out, enc_output, channel_enc_output, Tx_sig, Rx_sig, memory
+    intermediates = {
+        "out": out,
+        "enc_output": enc_output,
+        "channel_enc_output": channel_enc_output,
+        "Tx_sig": Tx_sig,
+        "Rx_sig": Rx_sig,
+        "memory": memory
+    }
+    return texts, intermediates
 
 # Example usage with dataset:
 if __name__ == '__main__':
     ds = EurDataset('test')  # or build a dataset from raw strings if you have tokenizer
     # print("ds.data: ", ds.data[0])
     dl = DataLoader(ds, batch_size=args.batch_size, collate_fn=collate_data)
+    inp_ = dl.dataset.data[0]
+    inp_str = stoT.sequence_to_text(inp_)
+    print("Input sentence: ", inp_str)
     for batch in dl:
-        preds, out, enc_output, channel_enc_output, Tx_sig, Rx_sig, memory = infer_sentence(batch, noise_snr=args.snr)
+        preds, intermediates = infer_sentence(batch, noise_snr=args.snr)
         for p in preds:
             print(p)
+        out = intermediates['out']
+        enc_output = intermediates['enc_output']
+        channel_enc_output = intermediates['channel_enc_output']
+        Tx_sig = intermediates['Tx_sig']
+        Rx_sig = intermediates['Rx_sig']
+        memory = intermediates['memory']
 
-        print(f"Input batch: {batch.shape}")
-        print(f"Output shape: {out.shape}")
-        print(f"Encoded output shape: {enc_output.shape}")
-        print(f"Channel encoded output shape: {channel_enc_output.shape}")
-        print(f"Transmitted signal shape: {Tx_sig.shape}")
-        print(f"Received signal shape: {Rx_sig.shape}")
-        print(f"Memory shape: {memory.shape}")
+        tx: numpy.ndarray = Tx_sig.cpu().numpy()[0]
+        rx: numpy.ndarray = Rx_sig.cpu().numpy()[0]
+
         
         # Visualize input and output tensors
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 5))
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 9))
         fig: Figure = fig
         # Add top-level title for the entire figure
         fig.suptitle(f'DeepSC Inference - SNR: {args.snr} dB, Channel: {args.channel}', fontsize=14, fontweight='bold')
@@ -102,19 +116,22 @@ if __name__ == '__main__':
         ax1.legend(['Input', 'Output'])
         fig.subplots_adjust(bottom=0.15)
         # Figure fraction (top-left of full figure)
-        fig.text(0.1, 0.08, f'Predicted: {preds[0]}', wrap=True, ha='left', va='top',
+        text = f"Input: {inp_str}\nOutput: {preds[0]}"
+        fig.text(0.1, 0.08, text, wrap=True, ha='left', va='top',
                  fontsize=10, bbox=dict(facecolor='white', alpha=0.9))
         
         io_diff = []
         for i, o in zip(inp, outp):
             io_diff.append(i - o)
-            
-        ax2.plot(io_diff)
-        ax2.set_title('Input - Output Difference')
+        ax2.plot(tx.flatten(), label='Tx', alpha=0.5)
+        ax2.plot(rx.flatten(), label='Rx', alpha=0.5)
+        ax2.set_title('Transmitted vs Received Signal')
+        ax2.grid(True)
+        ax2.legend()
+        # ax2.plot(io_diff)
+        # ax2.set_title('Input - Output Difference')
         # ax2.axis('off')
 
-        tx = Tx_sig.cpu().numpy()[0]
-        rx = Rx_sig.cpu().numpy()[0]
 
         ax3.imshow(tx)
         ax3.set_title('Transmitted Signal')
